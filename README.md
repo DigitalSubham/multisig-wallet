@@ -226,3 +226,132 @@ This is a function called DepositETH which allows users to send Ether (the crypt
 - **require(success,"invalid")**: This is a check that ensures the call function was successful. If success is false, the function will throw an exception with the error message "invalid".
 
 - **emit Deposit(msg.sender,msg.value,address(this).balance)**: This is an event that is emitted to the Ethereum network when the function is executed. It includes the address of the user who sent the Ether (msg.sender), the amount of Ether sent (msg.value), and the balance of the contract after the deposit (address(this).balance). The event is useful for keeping track of deposits and withdrawals from the contract.
+
+
+~~~
+function executeTransaction(uint256 _txIndex)
+        public
+        onlyOwner
+        txExists(_txIndex)
+        notExecuted(_txIndex)
+    {
+        
+        Transaction storage transaction = transactions[_txIndex];
+        require(
+            transaction.numConfirmations >= numConfirmationsRequired,
+            " Cant exeute tx not enough confirmations"
+        );
+        transaction.executed = true;
+        (bool success, ) = transaction.to.call{gas:20000,value: transaction.value}(
+            transaction.data
+        );
+        require(success, "tx failed");
+        
+        emit ExecuteTransaction(msg.sender, _txIndex);
+    }
+~~~
+
+This function allows the owner to execute a transaction that has already been submitted and confirmed by the required number of owners.
+
+First, the function checks that the transaction exists and has not already been executed, using the txExists and notExecuted modifiers.
+
+Then, it retrieves the transaction from the transactions array using the provided _txIndex parameter.
+
+Next, it checks if the transaction has been confirmed by the required number of owners. This is done by checking if transaction.numConfirmations is greater than or equal to numConfirmationsRequired, which is a public variable set in the constructor of the contract.
+
+If the transaction has been confirmed by the required number of owners, the executed flag of the transaction is set to true to prevent it from being executed again.
+
+Finally, the function uses the call method to execute the transaction by sending the specified value of ether (if any) and the data parameter to the recipient address specified in transaction.to. If the transaction execution is successful, the function emits an ExecuteTransaction event with the details of the transaction and the address of the owner who executed it. Otherwise, it reverts the transaction and throws an error message.
+
+~~~
+function revokeConfirmation(uint _txIndex)
+    public
+    onlyOwner
+    txExists(_txIndex)
+    notExecuted(_txIndex)
+    {
+        Transaction storage transaction =transactions[_txIndex];
+        require (isConfirmed[_txIndex][msg.sender],"tx is not confirmed");
+        transaction.numConfirmations-=1;
+        isConfirmed[_txIndex][msg.sender]=false;
+
+        emit RevokeTransaction(msg.sender,_txIndex);
+
+    }
+~~~
+
+This function allows an owner of the wallet to revoke their previous confirmation for a transaction. The details of the function are as follows:
+
+- **function revokeConfirmation(uint _txIndex)**:  This is a public function that takes a transaction index as an input parameter. It allows an owner of the wallet to revoke their previous confirmation for a transaction.
+- **public**: This function is publicly accessible and can be called from outside the contract.
+
+- **onlyOwner**: This is a modifier that restricts the access to only the owners of the wallet.
+
+- **txExists(_txIndex)**: This is a modifier that checks whether the given transaction index is valid and exists in the transactions array.
+
+- **notExecuted(_txIndex)**: This is a modifier that checks whether the given transaction has not been executed yet.
+
+- **Transaction storage transaction =transactions[_txIndex];**: This line of code declares a storage variable transaction and assigns the value of the transaction at the given index from the transactions array.
+
+- **require (isConfirmed[_txIndex][msg.sender],"tx is not confirmed");**: This line of code checks whether the owner has already confirmed the transaction or not. If the owner has not confirmed the transaction, the function throws an error and stops execution.
+
+- **transaction.numConfirmations-=1;**: This line of code decrements the number of confirmations for the given transaction by one.
+
+- **isConfirmed[_txIndex][msg.sender]=false;**: This line of code sets the isConfirmed mapping for the given transaction and owner to false.
+
+- **emit RevokeTransaction(msg.sender,_txIndex);**: This line of code emits a RevokeTransaction event, indicating that the given owner has revoked their confirmation for the given transaction.
+
+~~~
+function getOwners() public view returns(address[] memory){
+        return owners;
+    }
+
+    function getTransactionCount() public view returns(uint){
+        return transactions.length;
+    }
+~~~
+
+The function getOwners() is a public function that returns an array of address type which contains all the owners in the multi-signature wallet contract.
+
+The function getTransactionCount() is also a public function that returns the total number of transactions that have been submitted to the contract. It returns the length of the transactions array which stores all the submitted transactions.
+
+~~~
+function getTransaction(uint _txIndex)
+    public 
+    view
+    returns(
+        address to,
+        uint value,
+        bytes memory data,
+        bool executed,
+        uint numConfirmations
+    )
+    {
+        Transaction storage transaction=transactions[_txIndex];
+        return(
+            transaction.to,
+            transaction.value,
+            transaction.data,
+            transaction.executed,
+            transaction.numConfirmations
+        );
+    }
+~~~
+
+This function getTransaction is a public view function that returns information about a transaction by its index in the transactions array.
+
+The function takes an argument _txIndex, which is the index of the transaction in the transactions array for which information is to be retrieved.
+
+The function returns the following information about the transaction as a tuple:
+
+- **to**: the address of the recipient of the transaction
+- **value**: the amount of ether sent in the transaction
+- **data**: the data payload of the transaction
+- **executed**: a boolean indicating whether or not the transaction has been executed
+- **numConfirmations**: the number of confirmations the transaction has received so far
+
+The function starts by declaring a local variable transaction of type Transaction, which is a struct that contains the same fields as the tuple returned by the function.
+
+Then, it retrieves the Transaction object at the specified index in the transactions array using the _txIndex argument and assigns it to the transaction variable.
+
+Finally, the function returns the tuple of transaction information using the fields of the transaction object as its components.
