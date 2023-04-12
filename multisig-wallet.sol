@@ -140,26 +140,29 @@ function submitTransaction(address _to, uint _value, bytes memory _data) public 
         emit Deposit(msg.sender,msg.value,address(this).balance);
     } 
     
+    /**
+ * @dev Executes a transaction if it has enough confirmations from owners.
+ * @param _txIndex The index of the transaction to execute.
+ */
        function executeTransaction(uint256 _txIndex)
         public
-        onlyOwner
-        txExists(_txIndex)
-        notExecuted(_txIndex)
+        onlyOwner                   // only the owner can execute transactions
+        txExists(_txIndex)          // check if transaction exists
+        notExecuted(_txIndex)       // check if transaction has not been executed yet
     {
-        
-        Transaction storage transaction = transactions[_txIndex];
+        Transaction storage transaction = transactions[_txIndex];  // get transaction at given index
         require(
-            transaction.numConfirmations >= numConfirmationsRequired,
-            " Cant exeute tx not enough confirmations"
+            transaction.numConfirmations >= numConfirmationsRequired,  // check if enough confirmations have been received
+            "Can't execute transaction: not enough confirmations"
         );
-        transaction.executed = true;
-        (bool success, ) = transaction.to.call{gas:20000,value: transaction.value}(
+        transaction.executed = true;   // set transaction as executed
+        (bool success, ) = transaction.to.call{gas:20000,value: transaction.value}(   // call the transaction
             transaction.data
         );
-        require(success, "tx failed");
-        
-        emit ExecuteTransaction(msg.sender, _txIndex);
+        require(success, "Transaction failed");    // check if the transaction was successful
+        emit ExecuteTransaction(msg.sender, _txIndex);   // emit an event indicating the transaction has been executed
     }
+
 
 
  
